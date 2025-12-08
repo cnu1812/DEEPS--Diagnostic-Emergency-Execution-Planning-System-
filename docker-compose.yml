@@ -1,0 +1,18 @@
+version: "3"
+services:
+  kestra:
+    image: kestra/kestra:latest
+    container_name: deeps-kestra
+    user: "root"   
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./agents:/app/agents
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: server local
+    environment:
+      KESTRA_CONFIGURATION: |
+        kestra:
+          server:
+            basic-auth:
+              enabled: false
