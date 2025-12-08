@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  background: #050505;
+  color: #00ff88;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* No scrolling on the dashboard */
+  font-family: 'Courier New', Courier, monospace; /* Hacker font */
+}
+
+/* Custom Scrollbar for logs */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #111;
+}
+::-webkit-scrollbar-thumb {
+  background: #00ff88;
+}
