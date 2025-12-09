@@ -13,7 +13,6 @@ import {
   AlertTriangle, XCircle, Eye, Brain, Droplet, Filter, Cpu, Scan, Mic, Timer, Lock, Network, Database, FileCode, Server, HeartPulse, Syringe, Play, Pause, Rewind, FastForward, AlertOctagon, Search
 } from "lucide-react";
 
-// --- TYPES ---
 type SurgeryType = "NEURO" | "OCULAR" | "RENAL";
 
 type Plan = {
@@ -52,14 +51,12 @@ type Patient = {
   risk: "CRITICAL" | "HIGH" | "MODERATE";
 };
 
-// --- FLIGHT RECORDER TYPES ---
 type RecordedEvent = {
     timestamp: number;
     type: "LOG" | "VITALS" | "LASER" | "TUMOR" | "TELEMETRY";
     data: any;
 };
 
-// --- DOCTOR PERSONAS ---
 const DOCTORS = {
     NEURO: "Dr. Cnu",
     OCULAR: "Dr. Deepika",
@@ -68,7 +65,6 @@ const DOCTORS = {
     GENERAL: "Dr. DEEPS-AI"
 };
 
-// --- SPONSOR CONFIG ---
 const TOOLS = {
   IDLE: { name: "STANDBY", color: "text-gray-500", icon: <Cpu size={14} /> },
   VISION: { name: "TOGETHER AI", color: "text-blue-400", icon: <Scan size={14} /> },
@@ -79,7 +75,6 @@ const TOOLS = {
   LEARNING: { name: "RLHF TRAINING", color: "text-yellow-400", icon: <Database size={14} /> }
 };
 
-// --- LEARNING INSIGHTS ---
 const INSIGHTS = [
   "Refined vascular avoidance trajectory weights by +0.04.",
   "Optimized laser pulse duration for dense tissue (-12ms).",
@@ -89,7 +84,68 @@ const INSIGHTS = [
   "Calibrated haptic feedback based on tissue resistance."
 ];
 
-// --- DATA GENERATOR ---
+
+const getDynamicPrescription = (patient: Patient) => {
+    const common = "1. Acetaminophen 325mg - As needed for pain (Max 3g/day)\n";
+    
+    if (patient.type === "NEURO") {
+        return common + 
+        "2. Dexamethasone 4mg - 1 tab every 6 hrs (Reduce swelling)\n" +
+        "3. Levetiracetam 500mg - 1 tab every 12 hrs (Seizure prophylaxis)";
+    } 
+    else if (patient.type === "OCULAR") {
+        return common + 
+        "2. Prednisolone Acetate 1% Drops - 1 drop every 2 hrs\n" +
+        "3. Ofloxacin 0.3% Drops - 1 drop 4x daily";
+    } 
+    else if (patient.type === "RENAL") {
+        return common + 
+        "2. Tamsulosin 0.4mg - 1 cap daily (Facilitate passage)\n" +
+        "3. Ciprofloxacin 500mg - 1 tab every 12 hrs (Infection check)";
+    }
+    return common + "2. Ibuprofen 400mg - every 6 hours";
+};
+
+const generateDynamicScript = (patient: Patient) => {
+    const coords = `x=${patient.tumorPos.x.toFixed(2)}, y=${patient.tumorPos.y.toFixed(2)}, z=${patient.tumorPos.z.toFixed(2)}`;
+    let safetyCheck = "";
+    let wavelength = "";
+    
+    if (patient.type === "NEURO") {
+        safetyCheck = "check_intracranial_pressure(limit=20)";
+        wavelength = "532nm (KTP)";
+    } else if (patient.type === "OCULAR") {
+        safetyCheck = "check_corneal_thickness(min=400)";
+        wavelength = "193nm (Excimer)";
+    } else {
+        safetyCheck = "check_ureter_dilation(max_mm=4)";
+        wavelength = "2100nm (Ho:YAG)";
+    }
+
+    return `def surgical_protocol_${patient.type.toLowerCase()}():
+    """
+    AUTONOMOUS SCRIPT FOR: ${patient.name}
+    TARGET: ${patient.condition}
+    """
+    import deeps_robotics as dr
+    
+    # 1. Initialize Robot at Coordinates
+    target_vector = dr.Vector3(${coords})
+    dr.calibrate_arm(target_vector)
+    
+    # 2. Organ-Specific Safety Check
+    safety_metric = dr.${safetyCheck}
+    if not safety_metric.is_safe():
+        dr.emergency_halt("Vitals Unstable")
+        
+    # 3. Execute Ablation Sequence
+    dr.set_laser_wavelength("${wavelength}")
+    dr.fire_precision_beam(duration_ms=1200, power=45)
+    
+    return "PROCEDURE_SUCCESS"`;
+};
+
+
 const generatePatients = (count: number): Patient[] => {
   const names = ["Sarah Connor", "John Smith", "Elena Rodriguez", "Akira Sato", "Marcus Aurelius", "Wei Chen", "Priya Patel", "Lars Jensen", "Amara Diallo", "David Kim", "Neo Anderson", "Trinity Moss"];
   const configs = [
@@ -148,7 +204,6 @@ const generatePatients = (count: number): Patient[] => {
 
 const ROBOT_BASE_POSITION = new THREE.Vector3(3.5, 0, 1.5);
 
-// --- 3D ASSETS ---
 const RealisticBrain = () => {
   const { scene } = useGLTF("/brain.glb");
   const clonedScene = useMemo(() => scene.clone(), [scene]);
@@ -270,69 +325,80 @@ const RobotArm = ({ targetPos, laserState, type }: { targetPos: THREE.Vector3, l
   )
 }
 
-// --- CLINE AGENT INTERFACE ---
-const ClineInterface = ({ active, onComplete }: { active: boolean, onComplete: () => void }) => {
+const ClineInterface = ({ active, onComplete, patient }: { active: boolean, onComplete: () => void, patient: Patient | null }) => {
     const [step, setStep] = useState(0);
     const [code, setCode] = useState("");
     const [thought, setThought] = useState("");
     const [score, setScore] = useState(0);
 
-    const fullCode = `def autonomous_ablation(target_vector, safety_margin=0.5):
-    """
-    Executes precision laser sequence.
-    Audited by: CodeRabbit
-    """
-    import robotic_arm as arm
-    
-    # 1. Calibrate Coordinates
-    arm.calibrate(target_vector)
-    
-    # 2. Safety Check
-    if arm.scan_obstacles() > safety_margin:
-        raise SafetyException("Obstacle Detected")
-        
-    # 3. Fire Laser
-    arm.fire_laser(duration_ms=1200, power_watts=45)
-    return "SUCCESS"`;
+  
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const dragOffset = useRef({ x: 0, y: 0 });
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        setIsDragging(true);
+        dragOffset.current = { x: e.clientX - position.x, y: e.clientY - position.y };
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging) return;
+        setPosition({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
+    };
+
+    const handleMouseUp = () => setIsDragging(false);
 
     useEffect(() => {
-        if (!active) return;
+        if (!active || !patient) return;
         
+        
+        const dynamicCode = generateDynamicScript(patient);
+
         let mounted = true;
         const runSequence = async () => {
+            
             setStep(1);
-            setThought("Analyzing surgical requirements... checking safety constraints...");
-            await new Promise(r => setTimeout(r, 1500));
+            setThought(`Analyzing ${patient.type} anatomy... calculating optimal vector...`);
+            await new Promise(r => setTimeout(r, 4000));
+            
             
             setStep(2);
-            setThought("Generating Python control script for robotic arm...");
-            for (let i = 0; i <= fullCode.length; i++) {
+            setThought("Scaffolding Python control script with Kestra parameters...");
+            for (let i = 0; i <= dynamicCode.length; i++) {
                 if (!mounted) return;
-                setCode(fullCode.slice(0, i));
-                await new Promise(r => setTimeout(r, 15)); 
+                setCode(dynamicCode.slice(0, i));
+                await new Promise(r => setTimeout(r, 20)); 
             }
-            await new Promise(r => setTimeout(r, 800));
+            await new Promise(r => setTimeout(r, 2000));
 
+           
             setStep(3);
-            setThought("Running static analysis & vulnerability scan...");
-            await new Promise(r => setTimeout(r, 1500));
-            setScore(99.92);
+            setThought("Running autonomous safety audit (CodeRabbit)...");
+            await new Promise(r => setTimeout(r, 5000));
+            setScore(99.98);
 
-            await new Promise(r => setTimeout(r, 1500));
+            
+            setThought("Deployment Authorized. Handing control to Kestra Orchestrator.");
+            await new Promise(r => setTimeout(r, 4000));
+            
             if (mounted) onComplete();
         };
         
         runSequence();
         return () => { mounted = false; };
-    }, [active]);
+    }, [active, patient]);
 
     if (!active) return null;
 
     return (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[600px] bg-[#1e1e1e] rounded-lg shadow-2xl overflow-hidden border border-[#333] font-mono text-sm">
-            <div className="bg-[#252526] p-2 flex items-center justify-between border-b border-[#333]">
-                <div className="flex items-center gap-2 text-gray-300">
-                    <Terminal size={14} className="text-orange-400"/> CLINE AGENT (v1.4.2)
+        <div 
+            className="absolute z-50 w-[600px] bg-[#1e1e1e] rounded-lg shadow-2xl overflow-hidden border border-[#333] font-mono text-sm"
+            style={{ top: `calc(50% + ${position.y}px)`, left: `calc(50% + ${position.x}px)`, transform: 'translate(-50%, -50%)', cursor: isDragging ? 'grabbing' : 'default' }}
+            onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+        >
+            <div className="bg-[#252526] p-2 flex items-center justify-between border-b border-[#333] cursor-grab" onMouseDown={handleMouseDown}>
+                <div className="flex items-center gap-2 text-gray-300 pointer-events-none">
+                    <Terminal size={14} className="text-orange-400"/> CLINE AGENT (AUTONOMOUS MODE)
                 </div>
                 <div className="flex gap-1">
                     <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
@@ -342,7 +408,7 @@ const ClineInterface = ({ active, onComplete }: { active: boolean, onComplete: (
             </div>
 
             <div className="p-4 h-[400px] flex flex-col">
-                <div className="flex-1 space-y-4 overflow-y-auto mb-4">
+                <div className="flex-1 space-y-4 overflow-y-auto mb-4 custom-scrollbar">
                     <div className="flex gap-3">
                         <div className="w-8 h-8 rounded bg-purple-600 flex items-center justify-center shrink-0">AI</div>
                         <div className="bg-[#2d2d2d] p-3 rounded text-gray-300 w-full">
@@ -350,7 +416,7 @@ const ClineInterface = ({ active, onComplete }: { active: boolean, onComplete: (
                                 {step === 1 ? <Scan className="animate-spin" size={10}/> : step > 1 ? <CheckCircle className="text-green-500" size={10}/> : null}
                                 PLAN
                             </div>
-                            {step >= 1 && <p>I need to generate a control script for the laser ablation sequence. I will prioritize vascular avoidance and thermal limits.</p>}
+                            {step >= 1 && <p>Ingesting Kestra summary. I need to scaffold a unique ablation script for this {patient?.type} procedure, ensuring zero vascular damage.</p>}
                         </div>
                     </div>
 
@@ -378,7 +444,7 @@ const ClineInterface = ({ active, onComplete }: { active: boolean, onComplete: (
                                     <ShieldCheck className="text-green-500" size={10}/> REVIEW
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span>Code Analysis Complete.</span>
+                                    <span>Refactoring complete. Audit passed.</span>
                                     <span className="text-green-400 font-bold text-lg">{score}% ACCURACY</span>
                                 </div>
                             </div>
@@ -395,7 +461,7 @@ const ClineInterface = ({ active, onComplete }: { active: boolean, onComplete: (
     );
 };
 
-// --- GHOST PATHS (XAI) ---
+
 const GhostPaths = ({ targetPos, show }: { targetPos: THREE.Vector3, show: boolean }) => {
     if (!show) return null;
     const start = ROBOT_BASE_POSITION;
@@ -416,7 +482,7 @@ const GhostPaths = ({ targetPos, show }: { targetPos: THREE.Vector3, show: boole
     );
 };
 
-// --- XAI ADVISOR HUD (TOP RIGHT - STACKED NEXT TO TELEMETRY) ---
+
 const XAIAdvisor = ({ active, plans }: { active: boolean, plans: Plan[] }) => {
   if (!active) return null;
   return (
@@ -449,7 +515,7 @@ const XAIAdvisor = ({ active, plans }: { active: boolean, plans: Plan[] }) => {
   );
 };
 
-// --- TELEMETRY HUD ---
+
 const LiveTelemetry = ({ active, data }: { active: boolean, data?: any }) => {
     const [latency, setLatency] = useState(12);
     const [gpu, setGpu] = useState(42);
@@ -493,7 +559,7 @@ const LiveTelemetry = ({ active, data }: { active: boolean, data?: any }) => {
     )
 }
 
-// --- VITALS HUD ---
+
 const LiveVitals = ({ patient, data }: { patient: Patient, data?: any }) => {
     const [hr, setHr] = useState(patient.vitals.hr);
     const [bpSys, setBpSys] = useState(parseInt(patient.vitals.bp.split('/')[0]));
@@ -562,7 +628,7 @@ const LiveVitals = ({ patient, data }: { patient: Patient, data?: any }) => {
     )
 }
 
-// --- MAIN PAGE ---
+
 export default function DeepsHospitalOS() {
   const [patients, setPatients] = useState<Patient[]>(() => generatePatients(15));
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -584,11 +650,14 @@ export default function DeepsHospitalOS() {
   const [panicMode, setPanicMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
   
-  // XAI State
+ 
   const [showXAI, setShowXAI] = useState(false);
   const [xaiPlans, setXaiPlans] = useState<Plan[]>([]);
+  
+  
+  const [showCline, setShowCline] = useState(false);
 
-  // Flight Recorder
+  
   const [sessionHistory, setSessionHistory] = useState<RecordedEvent[]>([]);
   const [replayTime, setReplayTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -596,11 +665,8 @@ export default function DeepsHospitalOS() {
   const startTimeRef = useRef(0);
   const historyRef = useRef<RecordedEvent[]>([]);
   const isRecordingRef = useRef(false);
-  
-  // Cline State
-  const [showCline, setShowCline] = useState(false);
 
-  // Helpers
+ 
   const recordEvent = (type: RecordedEvent['type'], data: any) => {
       if (!isRecordingRef.current) return;
       const event: RecordedEvent = {
@@ -614,7 +680,7 @@ export default function DeepsHospitalOS() {
   const logsEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => { logsEndRef.current?.scrollIntoView({ behavior: "smooth" }) }, [logs]);
 
-  // Replay Loop
+  
   useEffect(() => {
       let interval: any;
       if (view === "REPLAY" && isPlaying) {
@@ -691,7 +757,8 @@ export default function DeepsHospitalOS() {
       filename = `${selectedPatient.id}_REFERRAL.txt`;
     }
     else if (type === "PATIENT_SUCCESS") {
-      content = `DEEPS-OS PATIENT DISCHARGE SUMMARY\n--------------------------------------------------\nPATIENT: ${selectedPatient.name}\nPROCEDURE: ${selectedPatient.type} LASER ABLATION\nSTATUS: SUCCESSFUL\nSURGEON: ${operatingDoc}\nDATE: ${new Date().toLocaleDateString()}\n\nPRESCRIPTION (Rx):\n1. Amoxicillin 500mg - 1 tab every 8 hrs (7 days)\n2. Acetaminophen 325mg - As needed for pain`;
+      const rx = getDynamicPrescription(selectedPatient);
+      content = `DEEPS-OS PATIENT DISCHARGE SUMMARY\n--------------------------------------------------\nPATIENT: ${selectedPatient.name}\nPROCEDURE: ${selectedPatient.type} LASER ABLATION\nSTATUS: SUCCESSFUL\nSURGEON: ${operatingDoc}\nDATE: ${new Date().toLocaleDateString()}\n\nPRESCRIPTION (Rx):\n${rx}`;
       filename = `${selectedPatient.id}_DISCHARGE.txt`;
     }
     else if (type === "AI_LOGS") {
@@ -777,8 +844,8 @@ export default function DeepsHospitalOS() {
     setActiveTool("CLINE");
     addLog("CLINE", "Generating Control Script...");
     setShowCline(true);
-    // Simulated wait for Cline to finish "typing"
-    await delay(5000); 
+    
+    await delay(30000); 
     setShowCline(false);
 
     setActiveTool("RABBIT");
@@ -847,23 +914,19 @@ export default function DeepsHospitalOS() {
   const displayDestroyed = view === "REPLAY" ? currentReplayState?.tumorDestroyed || false : destroyed;
 
   const anomalies = useMemo(() => {
-      return sessionHistory.filter(e => e.type === "LOG" && (e.data.msg.includes("CRITICAL") || e.data.msg.includes("PREDICTIVE")));
+      return sessionHistory.filter(e => e.type === "LOG" && e.data.msg.includes("CRITICAL"));
   }, [sessionHistory]);
 
   return (
     <div className="w-screen h-screen bg-black overflow-hidden font-mono text-xs flex relative">
+      <button onClick={() => setIsListening(!isListening)} className={`fixed bottom-6 right-6 z-50 p-3 rounded-full shadow-2xl transition-all border border-gray-800 flex items-center gap-2 ${isListening ? 'bg-red-600/90 text-white animate-pulse' : 'bg-gray-900 text-gray-500 hover:text-white'}`}><Mic size={18} /><span className="font-bold">{isListening ? "LISTENING" : "VOICE"}</span></button>
+
       
-      {/* FORENSIC REPLAY MODE UI */}
       {view === "REPLAY" && (
           <div className="absolute bottom-0 left-0 w-full h-32 bg-black/90 border-t border-yellow-600/50 z-[200] p-6 flex flex-col justify-end backdrop-blur-xl">
               <div className="flex justify-between items-end mb-2 px-2">
-                  <div className="text-yellow-500 font-black tracking-widest flex items-center gap-2">
-                      <AlertOctagon size={18} className="animate-pulse"/> FORENSIC ANALYSIS MODE
-                  </div>
-                  <div className="text-2xl font-mono text-white">
-                      {new Date(replayTime).toISOString().substr(14, 5)} 
-                      <span className="text-sm text-gray-500 ml-1">/ {new Date(sessionHistory[sessionHistory.length-1]?.timestamp || 0).toISOString().substr(14, 5)}</span>
-                  </div>
+                  <div className="text-yellow-500 font-black tracking-widest flex items-center gap-2"><AlertOctagon size={18} className="animate-pulse"/> FORENSIC ANALYSIS MODE</div>
+                  <div className="text-2xl font-mono text-white">{new Date(replayTime).toISOString().substr(14, 5)} <span className="text-sm text-gray-500 ml-1">/ {new Date(sessionHistory[sessionHistory.length-1]?.timestamp || 0).toISOString().substr(14, 5)}</span></div>
               </div>
               <div className="relative w-full h-4 group cursor-pointer mb-4">
                   <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-800 rounded-full"></div>
@@ -873,15 +936,11 @@ export default function DeepsHospitalOS() {
               </div>
               <div className="flex justify-between items-center px-2">
                   <div className="flex gap-4">
-                      <button onClick={() => setIsPlaying(!isPlaying)} className="bg-yellow-600 hover:bg-yellow-500 text-black px-6 py-2 font-bold rounded flex items-center gap-2 transition-all">
-                          {isPlaying ? <Pause size={16} fill="black"/> : <Play size={16} fill="black"/>} {isPlaying ? "PAUSE" : "PLAY"}
-                      </button>
+                      <button onClick={() => setIsPlaying(!isPlaying)} className="bg-yellow-600 hover:bg-yellow-500 text-black px-6 py-2 font-bold rounded flex items-center gap-2 transition-all">{isPlaying ? <Pause size={16} fill="black"/> : <Play size={16} fill="black"/>} {isPlaying ? "PAUSE" : "PLAY"}</button>
                       <button onClick={() => setPlaybackSpeed(s => s === 1 ? 2 : s === 2 ? 4 : 1)} className="border border-gray-600 text-gray-400 px-4 py-2 rounded font-bold hover:bg-gray-800 transition-all w-24">{playbackSpeed}x</button>
                   </div>
                   <div className="flex gap-2">
-                      {anomalies.length === 0 ? <span className="text-green-500 font-bold text-xs tracking-widest border border-green-900 px-3 py-1 rounded">NO ANOMALIES DETECTED</span> : 
-                        anomalies.map((a, i) => (<button key={i} onClick={() => setReplayTime(a.timestamp)} className="bg-red-900/30 border border-red-500 text-red-400 px-3 py-1 rounded text-xs hover:bg-red-900 flex items-center gap-2 transition-all"><AlertTriangle size={12}/> {new Date(a.timestamp).toISOString().substr(14, 5)}</button>))
-                      }
+                      {anomalies.length === 0 ? <span className="text-green-500 font-bold text-xs tracking-widest border border-green-900 px-3 py-1 rounded">NO ANOMALIES DETECTED</span> : anomalies.map((a, i) => (<button key={i} onClick={() => setReplayTime(a.timestamp)} className="bg-red-900/30 border border-red-500 text-red-400 px-3 py-1 rounded text-xs hover:bg-red-900 flex items-center gap-2 transition-all"><AlertTriangle size={12}/> {new Date(a.timestamp).toISOString().substr(14, 5)}</button>))}
                   </div>
                   <button onClick={() => setView("DETAIL")} className="text-gray-500 hover:text-white font-bold text-xs tracking-widest transition-colors">EXIT FORENSICS</button>
               </div>
@@ -893,15 +952,10 @@ export default function DeepsHospitalOS() {
           <div className="w-1/4 h-full border-r border-green-900/50 bg-[#050505] flex flex-col z-20">
             <div className="p-6 border-b border-green-900/50">
               <h1 className="text-2xl font-black text-white tracking-widest">DEEPS<span className="text-cyan-400">.OS</span></h1>
-              <div className="flex justify-between items-center mt-1">
-                <div className="text-gray-500 text-[10px]">TRAUMA UNIT</div>
-                <div className="text-yellow-500 font-bold text-[10px] animate-pulse">KERNEL v{version}</div>
-              </div>
+              <div className="flex justify-between items-center mt-1"><div className="text-gray-500 text-[10px]">TRAUMA UNIT</div><div className="text-yellow-500 font-bold text-[10px] animate-pulse">KERNEL v{version}</div></div>
             </div>
             <div className="flex p-2 gap-1 border-b border-gray-900">
-              {["ALL", "NEURO", "OCULAR", "RENAL"].map((f) => (
-                <button key={f} onClick={() => setFilter(f as any)} className={`flex-1 py-2 text-[10px] font-bold rounded ${filter === f ? 'bg-cyan-900 text-cyan-400' : 'text-gray-600 hover:bg-gray-900'}`}>{f}</button>
-              ))}
+              {["ALL", "NEURO", "OCULAR", "RENAL"].map((f) => (<button key={f} onClick={() => setFilter(f as any)} className={`flex-1 py-2 text-[10px] font-bold rounded ${filter === f ? 'bg-cyan-900 text-cyan-400' : 'text-gray-600 hover:bg-gray-900'}`}>{f}</button>))}
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-2">
               {filteredPatients.map(p => (
@@ -922,46 +976,18 @@ export default function DeepsHospitalOS() {
                   <div className="text-right"><div className="text-red-500 font-bold text-2xl flex items-center gap-2 justify-end"><ShieldCheck size={24} /> {selectedPatient.risk}</div></div>
                 </div>
                 <div className="grid grid-cols-2 gap-8 flex-1">
-                  <div className="bg-gray-900/30 border border-gray-800 p-8 rounded">
-                    <h3 className="text-cyan-400 flex items-center gap-2 mb-6 text-lg"><Activity size={20} /> BIO-METRICS</h3>
-                    <div className="space-y-4 text-sm">
-                      <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">SPECIFIC METRIC</span><span className={`font-bold text-xl ${selectedPatient.vitals.specificMetric?.includes("HIGH") || selectedPatient.vitals.specificMetric?.includes("DANGEROUS") ? 'text-red-500 animate-pulse' : 'text-white'}`}>{selectedPatient.vitals.specificMetric}</span></div>
-                      <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">BLOOD TYPE</span><span className="text-white font-bold">{selectedPatient.vitals.bloodType}</span></div>
-                      <div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">WEIGHT</span><span className="text-white font-bold">{selectedPatient.vitals.weight} KG</span></div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-900/30 border border-gray-800 p-8 rounded">
-                    <h3 className="text-cyan-400 flex items-center gap-2 mb-6 text-lg"><Scan size={20} /> SCAN DATA</h3>
-                    <ul className="list-disc list-inside text-gray-300 space-y-3 text-sm">
-                      <li>Scan: {selectedPatient.scanInfo.type}</li>
-                      <li>Resolution: {selectedPatient.scanInfo.resolution}</li>
-                      <li>Primary Condition: {selectedPatient.condition}</li>
-                      <li className="text-yellow-500">Allergies: {selectedPatient.allergies}</li>
-                    </ul>
-                  </div>
+                  <div className="bg-gray-900/30 border border-gray-800 p-8 rounded"><h3 className="text-cyan-400 flex items-center gap-2 mb-6 text-lg"><Activity size={20} /> BIO-METRICS</h3><div className="space-y-4 text-sm"><div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">SPECIFIC METRIC</span><span className={`font-bold text-xl ${selectedPatient.vitals.specificMetric?.includes("HIGH") || selectedPatient.vitals.specificMetric?.includes("DANGEROUS") ? 'text-red-500 animate-pulse' : 'text-white'}`}>{selectedPatient.vitals.specificMetric}</span></div><div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">BLOOD TYPE</span><span className="text-white font-bold">{selectedPatient.vitals.bloodType}</span></div><div className="flex justify-between border-b border-gray-800 pb-2"><span className="text-gray-500">WEIGHT</span><span className="text-white font-bold">{selectedPatient.vitals.weight} KG</span></div></div></div>
+                  <div className="bg-gray-900/30 border border-gray-800 p-8 rounded"><h3 className="text-cyan-400 flex items-center gap-2 mb-6 text-lg"><Scan size={20} /> SCAN DATA</h3><ul className="list-disc list-inside text-gray-300 space-y-3 text-sm"><li>Scan: {selectedPatient.scanInfo.type}</li><li>Resolution: {selectedPatient.scanInfo.resolution}</li><li>Primary Condition: {selectedPatient.condition}</li><li className="text-yellow-500">Allergies: {selectedPatient.allergies}</li></ul></div>
                 </div>
                 <div className="mt-8 flex justify-end gap-4">
                     {selectedPatient.status === "COMPLETED" || selectedPatient.status === "CANCELLED" ? (
                         <>
-                            <button onClick={() => setShowSuccessReport(true)} className="px-8 py-6 rounded font-bold tracking-widest text-lg flex items-center gap-3 shadow-lg bg-gray-800 hover:bg-gray-700 text-white border border-gray-600">
-                                <FileText/> VIEW PATIENT REPORT
-                            </button>
-                            <button onClick={() => downloadReport("AI_LOGS")} className="px-8 py-6 rounded font-bold tracking-widest text-lg flex items-center gap-3 shadow-lg bg-cyan-900/30 hover:bg-cyan-900/50 text-cyan-400 border border-cyan-600">
-                                <Database/> DOWNLOAD AI LOGS
-                            </button>
-                            <button onClick={() => setView("REPLAY")} className="px-8 py-6 rounded font-bold tracking-widest text-lg flex items-center gap-3 shadow-lg bg-yellow-900/30 hover:bg-yellow-900/50 text-yellow-400 border border-yellow-600 animate-pulse">
-                                <Search/> FORENSIC REPLAY
-                            </button>
+                            <button onClick={() => setShowSuccessReport(true)} className="px-8 py-6 rounded font-bold tracking-widest text-lg flex items-center gap-3 shadow-lg bg-gray-800 hover:bg-gray-700 text-white border border-gray-600"><FileText/> VIEW PATIENT REPORT</button>
+                            <button onClick={() => downloadReport("AI_LOGS")} className="px-8 py-6 rounded font-bold tracking-widest text-lg flex items-center gap-3 shadow-lg bg-cyan-900/30 hover:bg-cyan-900/50 text-cyan-400 border border-cyan-600"><Database/> DOWNLOAD AI LOGS</button>
+                            <button onClick={() => setView("REPLAY")} className="px-8 py-6 rounded font-bold tracking-widest text-lg flex items-center gap-3 shadow-lg bg-yellow-900/30 hover:bg-yellow-900/50 text-yellow-400 border border-yellow-600 animate-pulse"><Search/> FORENSIC REPLAY</button>
                         </>
                     ) : (
-                        <button 
-                            id="initiate-btn" 
-                            onClick={executeSurgerySequence} 
-                            disabled={selectedPatient.status === "CANCELLED"} 
-                            className={`px-12 py-6 rounded font-bold tracking-widest text-lg flex items-center gap-3 shadow-lg transition-all ${selectedPatient.status === "CANCELLED" ? "bg-gray-800 text-gray-500 cursor-not-allowed" : "bg-cyan-700 hover:bg-cyan-600 text-white"}`}
-                        >
-                            <Zap /> INITIATE SURGERY
-                        </button>
+                        <button id="initiate-btn" onClick={executeSurgerySequence} disabled={selectedPatient.status === "CANCELLED"} className={`px-12 py-6 rounded font-bold tracking-widest text-lg flex items-center gap-3 shadow-lg transition-all ${selectedPatient.status === "CANCELLED" ? "bg-gray-800 text-gray-500 cursor-not-allowed" : "bg-cyan-700 hover:bg-cyan-600 text-white"}`}><Zap /> INITIATE SURGERY</button>
                     )}
                 </div>
               </div>
@@ -990,7 +1016,7 @@ export default function DeepsHospitalOS() {
             <LiveTelemetry active={true} data={displayTelemetry} />
             <LiveVitals patient={selectedPatient} data={displayVitals} />
             <XAIAdvisor active={showXAI && view !== "REPLAY"} plans={xaiPlans} />
-            <ClineInterface active={showCline} onComplete={() => setShowCline(false)} />
+            <ClineInterface active={showCline} onComplete={() => setShowCline(false)} patient={selectedPatient} />
 
             <Canvas camera={{ position: [0, 2, 6], fov: 40 }}>
               <color attach="background" args={["#000"]} />
@@ -1012,7 +1038,7 @@ export default function DeepsHospitalOS() {
         </div>
       )}
 
-      {/* --- SUCCESS MODAL --- */}
+      
       {showSuccessReport && selectedPatient && (
         <div className="fixed inset-0 z-[99999] w-screen h-screen bg-black flex items-end justify-start p-16">
           <div className="bg-white text-black p-8 max-w-2xl w-full shadow-[0_0_50px_rgba(255,255,255,0.2)] relative font-mono border-t-8 border-cyan-600 rounded-lg animate-in slide-in-from-bottom-10 fade-in duration-500">
@@ -1040,11 +1066,11 @@ export default function DeepsHospitalOS() {
         </div>
       )}
 
-      {/* --- ABORT MODAL --- */}
+     
       {showAbortReport && (
-        <div className="fixed inset-0 z-[99999] w-screen h-screen bg-black flex items-end justify-center p-16">
+        <div className="fixed inset-0 z-[99999] w-screen h-screen bg-black flex items-end justify-center pb-12">
           <div className="border-4 border-red-600 p-10 rounded-lg max-w-lg shadow-[0_0_100px_rgba(255,0,0,0.8)] animate-in slide-in-from-bottom-10 fade-in duration-300 relative bg-black">
-            {/* <AlertTriangle className="fixed  right-8 text-red-900/50" size={80} /> */}
+            {/* <AlertTriangle className="absolute top-4 right-4 text-red-900/50" size={100} /> */}
             <div className="relative z-10">
                 <h1 className="text-6xl text-red-600 mb-2 font-black tracking-tighter">ABORTED</h1>
                 <div className="text-xl font-bold text-red-500 mb-6 border-b border-red-900/50 pb-4">SAFETY PROTOCOL TRIGGERED</div>
