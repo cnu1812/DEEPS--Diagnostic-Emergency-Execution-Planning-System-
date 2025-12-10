@@ -5,7 +5,7 @@ Imagine it’s 3:00 AM. A trauma surgeon has been on their feet for 18 hours. A 
 
 In that split second, information is everywhere, but **insight is nowhere**.
 
-The surgeon has to mentally stitch together the scan data, the falling blood pressure, and the robotic trajectory. One millisecond of cognitive lag—one hesitation—can be the difference between a successful ablation and a catastrophic bleed.
+The surgeon has to mentally stitch together the scan data, the falling blood pressure, and the robotic trajectory. One millisecond of cognitive lag one hesitation can be the difference between a successful ablation and a catastrophic bleed.
 
 ## The Statistics That Haunt Us
 I didn't build this project for fun. I built it because the numbers are terrifying.
@@ -31,7 +31,7 @@ I refused to build another dashboard. Dashboards are passive. I wanted to build 
 **DEEPS.OS (Diagnostic Emergency Execution Planning System)** is the answer to the cognitive overload crisis. It unifies the fragmented operating room into a single, intelligent "Glass Box."
 
 ### 1. It Doesn't Just Show; It Thinks
-Instead of just displaying a 3D model, I engineered DEEPS.OS to calculate the **exact trajectory** to remove the tumor. It visualizes the "Ghost Paths"—the routes it considered and rejected—so the surgeon understands the *why* behind the decision.
+Instead of just displaying a 3D model, I engineered DEEPS.OS to calculate the **exact trajectory** to remove the tumor. It visualizes the "Ghost Paths" the routes it considered and rejected—so the surgeon understands the *why* behind the decision.
 
 ### 2. It Doesn't Just Act; It Audits
 Before a single laser pulse is fired, my embedded **Cline AI Agent** writes a custom Python safety protocol for that specific patient. It checks:

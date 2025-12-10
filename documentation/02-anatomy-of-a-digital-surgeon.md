@@ -15,7 +15,7 @@ For a Level-1 Trauma simulation, network latency is unacceptable. A spinning loa
 ### The "Deep Thought" (Kestra Orchestration)
 * **The Challenge:** We needed a way to model complex, multi-step surgical workflows (e.g., "Scan -> Analyze -> Authorize") without writing spaghetti code.
 * **The Engineering:** I integrated **Kestra** as the logical backbone. Even running locally, Kestra acts as the "State Machine" for the surgery.
-* **The Integration:** When the "Initiate" button is clicked, it doesn't just fire a function; it triggers a **Kestra Workflow**. This workflow is responsible for the "decision logic"—checking if the robotic arm is calibrated and if the patient vitals are stable—before returning a "GO/NO-GO" signal to the frontend.
+* **The Integration:** When the "Initiate" button is clicked, it doesn't just fire a function; it triggers a **Kestra Workflow**. This workflow is responsible for the "decision logic" checking if the robotic arm is calibrated and if the patient vitals are stable—before returning a "GO/NO-GO" signal to the frontend.
 
 ## 2. The Nervous System: In-Memory Event Sourcing
 In a real surgery, "undo" doesn't exist. If a mistake happens, it is lost to history. I wanted to change that.
