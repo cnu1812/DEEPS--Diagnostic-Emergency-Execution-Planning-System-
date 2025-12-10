@@ -10,11 +10,19 @@ In most apps, the frontend does the thinking. In DEEPS.OS, the frontend is just 
 I used Kestra not just for "jobs," but as a **Real-Time Decision Engine**.
 
 ### 1. The Architecture: Why I Chose Kestra
+
+![doc2](https://github.com/user-attachments/assets/a89342a1-68c9-4ed3-bee2-96fc21469623)
+
 I evaluated Airflow and Prefect, but they felt like "schedulers." I needed an **Orchestrator**.
 * **The "Everything-as-Code" Advantage:** Medical workflows are complex branching paths. Kestra's YAML-based flow definition allowed me to map the surgical logic (`Scan -> Risk -> Decision`) visually and immutably.
 * **Sub-Second Triggering:** I utilized Kestra's API to trigger flows *synchronously* from my Next.js frontend. When you click "Initiate," you aren't running a JavaScript function; you are firing a Kestra Webhook that spins up a containerized logic engine.
 
+![doc2-1](https://github.com/user-attachments/assets/9d529a1b-3668-4ca0-8f64-814a8529bb44)
+
 ### 2. The Logic: "Agentic Decision Making"
+
+![doc2-2](https://github.com/user-attachments/assets/e7550578-e5f1-42d6-8f90-0577abdbdbb7)
+
 I built a specific flow: `deeps.os.surgery_flow`.
 * **Ingestion:** It accepts raw, unstructured JSON payloads representing patient biometrics (e.g., `{"creatinine": 5.2, "icp": 22}`).
 * **The "Switch" Task:** Instead of hardcoding `if/else` logic in React, I used Kestra's `io.kestra.core.tasks.flows.Switch`.
@@ -23,6 +31,9 @@ I built a specific flow: `deeps.os.surgery_flow`.
 * **Result:** The decision to cut or abort is made by the backend infrastructure, providing an audit trail that would be legally required in a real hospital.
 
 ### 3. Challenges & Solutions
+![doc2-3](https://github.com/user-attachments/assets/da7648b0-6d16-4d66-8c42-d6cef89c902b)
+
+
 * **Challenge:** *State Persistence.* I needed the workflow to "remember" the patient ID across multiple distinct tasks (Scan, Analyze, Report).
 * **Solution:** I heavily utilized **Kestra Outputs & Inputs**. Passing the `executionId` as a persistent token allowed me to chain independent Python scripts into a cohesive narrative without losing context.
 
@@ -38,6 +49,9 @@ The interface you see in the app—where an AI agent types out code, audits it, 
 * **I used Cline (VS Code Extension)** to write the application.
 * **The Application simulates Cline** saving a patient.
 It is a tribute to the tool that made this project possible.
+![cline-1](https://github.com/user-attachments/assets/bae3afde-794e-4555-b2e5-6b44603a842b)
+
+
 
 ### 2. The "Impossible" Math: Where Cline Shined
 I am a full-stack developer, not a mathematician. The biggest technical hurdle was the **Dynamic Laser Physics**.
