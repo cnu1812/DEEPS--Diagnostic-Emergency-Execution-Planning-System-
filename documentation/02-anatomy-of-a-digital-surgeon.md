@@ -59,3 +59,5 @@ Why this matters: Visually, this makes the beam pass through the semi-transparen
 
 4. Architecture Diagram
 This system is a loop, not a line.
+![doc2](https://github.com/user-attachments/assets/61adae33-88e7-4b0e-910f-db71365f5a3d)
+
