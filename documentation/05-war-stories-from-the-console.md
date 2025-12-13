@@ -26,7 +26,7 @@ I engineered a sophisticated backend using Kestra to handle the surgical logic. 
 But when I tried to connect my Next.js frontend (running on `localhost:3000`) to the Kestra container (running on `localhost:8080`), they refused to talk.
 `Connection Refused`. `CORS Error`. `Network Unreachable`.
 
-I was trying to simulate a cohesive Operating System, but my two main components—the Brain and the Hands—were isolated on different network islands. I spent hours debugging Docker bridge networks and port bindings.
+I was trying to simulate a cohesive Operating System, but my two main components, the Brain and the Hands, were isolated on different network islands. I spent hours debugging Docker bridge networks and port bindings.
 
 **The Fix:**
 I had to engineer a specific **Server-Side API Bridge**.
